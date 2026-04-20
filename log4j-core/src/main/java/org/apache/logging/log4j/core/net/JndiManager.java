@@ -207,6 +207,19 @@ public class JndiManager extends AbstractManager {
      */
     @SuppressWarnings("unchecked")
     public <T> T lookup(final String name) throws NamingException {
+        // Reject any name containing a colon before the first slash — this catches
+        // URI-like patterns such as "ldap:something" that may not parse as valid URIs
+        // but could still be interpreted by a JNDI provider as a remote lookup.
+        final int colonIndex = name.indexOf(':');
+        final int firstSlash = name.indexOf('/');
+        if (colonIndex >= 0 && (firstSlash < 0 || colonIndex < firstSlash)) {
+            final String potentialScheme = name.substring(0, colonIndex).toLowerCase();
+            if (!ALLOWED_PROTOCOLS.contains(potentialScheme)) {
+                LOGGER.warn("JNDI name '{}' uses a protocol that is not allowed. Allowed protocols: {}.",
+                        name, ALLOWED_PROTOCOLS);
+                return null;
+            }
+        }
         try {
             final URI uri = new URI(name);
             final String scheme = uri.getScheme();
@@ -217,14 +230,15 @@ public class JndiManager extends AbstractManager {
             }
             if (scheme != null && (scheme.equalsIgnoreCase("ldap") || scheme.equalsIgnoreCase("ldaps"))) {
                 final String host = uri.getHost();
-                if (host != null && !ALLOWED_HOSTS.contains(host)) {
+                if (host != null && !ALLOWED_HOSTS.contains(host.toLowerCase())) {
                     LOGGER.warn("JNDI URI '{}' connects to a host that is not allowed. Allowed hosts: {}.",
                             name, ALLOWED_HOSTS);
                     return null;
                 }
             }
         } catch (final URISyntaxException e) {
-            // Not a URI — only allow if no scheme is present (plain name)
+            LOGGER.warn("JNDI name '{}' is not a valid URI and could not be validated; lookup rejected.", name);
+            return null;
         }
         return (T) this.context.lookup(name);
     }

@@ -70,6 +70,26 @@ public class JndiLookupTest {
         }
     }
 
+    /**
+     * Verifies that JNDI lookups return null when the property is explicitly set to false.
+     */
+    @Test
+    public void testLookupExplicitlyDisabled() {
+        final String previous = System.getProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+        try {
+            System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, "false");
+            final StrLookup lookup = new JndiLookup();
+            assertNull("JNDI lookup should return null when explicitly disabled",
+                    lookup.lookup(TEST_CONTEXT_RESOURCE_NAME));
+        } finally {
+            if (previous != null) {
+                System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, previous);
+            } else {
+                System.clearProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+            }
+        }
+    }
+
     @Test
     public void testLookup() {
         final String previous = System.getProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
