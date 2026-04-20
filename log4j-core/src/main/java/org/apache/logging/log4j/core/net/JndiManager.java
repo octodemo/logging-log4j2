@@ -56,10 +56,10 @@ public class JndiManager extends AbstractManager {
     static {
         final String protocols = PropertiesUtil.getProperties().getStringProperty(
                 ALLOWED_PROTOCOLS_PROPERTY, "java");
-        ALLOWED_PROTOCOLS = Arrays.asList(protocols.split("\\s*,\\s*"));
+        ALLOWED_PROTOCOLS = Arrays.asList(protocols.toLowerCase().split("\\s*,\\s*"));
         final String hosts = PropertiesUtil.getProperties().getStringProperty(
                 ALLOWED_HOSTS_PROPERTY, "localhost,127.0.0.1,0:0:0:0:0:0:0:1,::1");
-        ALLOWED_HOSTS = Arrays.asList(hosts.split("\\s*,\\s*"));
+        ALLOWED_HOSTS = Arrays.asList(hosts.toLowerCase().split("\\s*,\\s*"));
     }
 
     /**
