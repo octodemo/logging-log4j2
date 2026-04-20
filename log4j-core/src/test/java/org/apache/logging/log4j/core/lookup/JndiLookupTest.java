@@ -50,27 +50,87 @@ public class JndiLookupTest {
         return map;
     }
 
+    /**
+     * Verifies that JNDI lookups return null when JNDI is disabled (the default).
+     * This is the expected secure-by-default behaviour introduced to mitigate CVE-2021-44228.
+     */
+    @Test
+    public void testLookupDisabledByDefault() {
+        // Ensure the property is not set so the default (disabled) is used.
+        final String previous = System.getProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+        try {
+            System.clearProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+            final StrLookup lookup = new JndiLookup();
+            assertNull("JNDI lookup should return null when disabled by default (CVE-2021-44228)",
+                    lookup.lookup(TEST_CONTEXT_RESOURCE_NAME));
+        } finally {
+            if (previous != null) {
+                System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, previous);
+            }
+        }
+    }
+
+    /**
+     * Verifies that JNDI lookups return null when the property is explicitly set to false.
+     */
+    @Test
+    public void testLookupExplicitlyDisabled() {
+        final String previous = System.getProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+        try {
+            System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, "false");
+            final StrLookup lookup = new JndiLookup();
+            assertNull("JNDI lookup should return null when explicitly disabled",
+                    lookup.lookup(TEST_CONTEXT_RESOURCE_NAME));
+        } finally {
+            if (previous != null) {
+                System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, previous);
+            } else {
+                System.clearProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+            }
+        }
+    }
+
     @Test
     public void testLookup() {
-        final StrLookup lookup = new JndiLookup();
+        final String previous = System.getProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+        try {
+            System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, "true");
+            final StrLookup lookup = new JndiLookup();
 
-        String contextName = lookup.lookup(TEST_CONTEXT_RESOURCE_NAME);
-        assertEquals(TEST_CONTEXT_NAME, contextName);
+            String contextName = lookup.lookup(TEST_CONTEXT_RESOURCE_NAME);
+            assertEquals(TEST_CONTEXT_NAME, contextName);
 
-        contextName = lookup.lookup(JndiLookup.CONTAINER_JNDI_RESOURCE_PATH_PREFIX + TEST_CONTEXT_RESOURCE_NAME);
-        assertEquals(TEST_CONTEXT_NAME, contextName);
+            contextName = lookup.lookup(JndiLookup.CONTAINER_JNDI_RESOURCE_PATH_PREFIX + TEST_CONTEXT_RESOURCE_NAME);
+            assertEquals(TEST_CONTEXT_NAME, contextName);
 
-        final String nonExistingResource = lookup.lookup("logging/non-existing-resource");
-        assertNull(nonExistingResource);
+            final String nonExistingResource = lookup.lookup("logging/non-existing-resource");
+            assertNull(nonExistingResource);
+        } finally {
+            if (previous != null) {
+                System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, previous);
+            } else {
+                System.clearProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+            }
+        }
     }
 
     @Test
     public void testNonStringLookup() throws Exception {
         // LOG4J2-1310
-        final StrLookup lookup = new JndiLookup();
-        final String integralValue = lookup.lookup(TEST_INTEGRAL_NAME);
-        assertEquals(String.valueOf(TEST_INTEGRAL_VALUE), integralValue);
-        final String collectionValue = lookup.lookup(TEST_STRINGS_NAME);
-        assertEquals(String.valueOf(TEST_STRINGS_COLLECTION), collectionValue);
+        final String previous = System.getProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+        try {
+            System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, "true");
+            final StrLookup lookup = new JndiLookup();
+            final String integralValue = lookup.lookup(TEST_INTEGRAL_NAME);
+            assertEquals(String.valueOf(TEST_INTEGRAL_VALUE), integralValue);
+            final String collectionValue = lookup.lookup(TEST_STRINGS_NAME);
+            assertEquals(String.valueOf(TEST_STRINGS_COLLECTION), collectionValue);
+        } finally {
+            if (previous != null) {
+                System.setProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY, previous);
+            } else {
+                System.clearProperty(JndiLookup.JNDI_LOOKUP_ENABLED_PROPERTY);
+            }
+        }
     }
 }
