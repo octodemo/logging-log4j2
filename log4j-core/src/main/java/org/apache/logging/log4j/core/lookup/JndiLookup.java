@@ -27,15 +27,21 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.net.JndiManager;
 import org.apache.logging.log4j.status.StatusLogger;
+import org.apache.logging.log4j.util.PropertiesUtil;
 
 /**
  * Looks up keys from JNDI resources.
+ *
+ * <p>As of Log4j 2.16.0, JNDI lookups are disabled by default as a mitigation for
+ * CVE-2021-44228 (Log4Shell). To re-enable, set the system property
+ * {@code log4j2.enableJndiLookup=true}.</p>
  */
 @Plugin(name = "jndi", category = StrLookup.CATEGORY)
 public class JndiLookup extends AbstractLookup {
 
     private static final Logger LOGGER = StatusLogger.getLogger();
     private static final Marker LOOKUP = MarkerManager.getMarker("LOOKUP");
+    static final String JNDI_LOOKUP_ENABLED_PROPERTY = "log4j2.enableJndiLookup";
 
     /** JNDI resource path prefix used in a J2EE container */
     static final String CONTAINER_JNDI_RESOURCE_PATH_PREFIX = "java:comp/env/";
@@ -48,6 +54,11 @@ public class JndiLookup extends AbstractLookup {
      */
     @Override
     public String lookup(final LogEvent event, final String key) {
+        if (!isJndiLookupEnabled()) {
+            LOGGER.warn(LOOKUP, "JNDI lookup is not enabled. To enable, set system property '{}=true'. "
+                    + "See CVE-2021-44228 for details.", JNDI_LOOKUP_ENABLED_PROPERTY);
+            return null;
+        }
         if (key == null) {
             return null;
         }
@@ -58,6 +69,10 @@ public class JndiLookup extends AbstractLookup {
             LOGGER.warn(LOOKUP, "Error looking up JNDI resource [{}].", jndiName, e);
             return null;
         }
+    }
+
+    private static boolean isJndiLookupEnabled() {
+        return PropertiesUtil.getProperties().getBooleanProperty(JNDI_LOOKUP_ENABLED_PROPERTY, false);
     }
 
     /**

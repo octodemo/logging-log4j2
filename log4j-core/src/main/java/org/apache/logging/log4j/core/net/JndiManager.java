@@ -17,6 +17,10 @@
 
 package org.apache.logging.log4j.core.net;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -27,15 +31,45 @@ import javax.naming.NamingException;
 import org.apache.logging.log4j.core.appender.AbstractManager;
 import org.apache.logging.log4j.core.appender.ManagerFactory;
 import org.apache.logging.log4j.core.util.JndiCloser;
+import org.apache.logging.log4j.util.PropertiesUtil;
 
 /**
  * Manages a JNDI {@link javax.naming.Context}.
+ *
+ * <p>As of Log4j 2.16.0, JNDI features are disabled by default as a mitigation for
+ * CVE-2021-44228 (Log4Shell). To re-enable, set the system property
+ * {@code log4j2.enableJndi=true}. Allowed JNDI protocols can be configured via
+ * {@code log4j2.allowedJndiProtocols} (default: {@code java}) and allowed LDAP hosts
+ * via {@code log4j2.allowedLdapHosts} (default: {@code localhost}).</p>
  *
  * @since 2.1
  */
 public class JndiManager extends AbstractManager {
 
     private static final JndiManagerFactory FACTORY = new JndiManagerFactory();
+    static final String JNDI_MANAGER_ENABLED_PROPERTY = "log4j2.enableJndi";
+    private static final String ALLOWED_PROTOCOLS_PROPERTY = "log4j2.allowedJndiProtocols";
+    private static final String ALLOWED_HOSTS_PROPERTY = "log4j2.allowedLdapHosts";
+    private static final List<String> ALLOWED_PROTOCOLS;
+    private static final List<String> ALLOWED_HOSTS;
+
+    static {
+        final String protocols = PropertiesUtil.getProperties().getStringProperty(
+                ALLOWED_PROTOCOLS_PROPERTY, "java");
+        ALLOWED_PROTOCOLS = Arrays.asList(protocols.split("\\s*,\\s*"));
+        final String hosts = PropertiesUtil.getProperties().getStringProperty(
+                ALLOWED_HOSTS_PROPERTY, "localhost,127.0.0.1,0:0:0:0:0:0:0:1,::1");
+        ALLOWED_HOSTS = Arrays.asList(hosts.split("\\s*,\\s*"));
+    }
+
+    /**
+     * Returns whether JNDI is enabled via the {@code log4j2.enableJndi} system property.
+     *
+     * @return {@code true} if JNDI is enabled, {@code false} otherwise.
+     */
+    public static boolean isJndiEnabled() {
+        return PropertiesUtil.getProperties().getBooleanProperty(JNDI_MANAGER_ENABLED_PROPERTY, false);
+    }
 
     private final Context context;
 
@@ -162,6 +196,10 @@ public class JndiManager extends AbstractManager {
     /**
      * Looks up a named object through this JNDI context.
      *
+     * <p>This method validates the URI scheme against the allowed protocols list
+     * ({@code log4j2.allowedJndiProtocols}). LDAP/LDAPS URIs are also validated
+     * against the allowed hosts list ({@code log4j2.allowedLdapHosts}).</p>
+     *
      * @param name name of the object to look up.
      * @param <T>  the type of the object.
      * @return the named object if it could be located.
@@ -169,6 +207,25 @@ public class JndiManager extends AbstractManager {
      */
     @SuppressWarnings("unchecked")
     public <T> T lookup(final String name) throws NamingException {
+        try {
+            final URI uri = new URI(name);
+            final String scheme = uri.getScheme();
+            if (scheme != null && !ALLOWED_PROTOCOLS.contains(scheme.toLowerCase())) {
+                LOGGER.warn("JNDI URI '{}' uses a protocol that is not allowed. Allowed protocols: {}.",
+                        name, ALLOWED_PROTOCOLS);
+                return null;
+            }
+            if (scheme != null && (scheme.equalsIgnoreCase("ldap") || scheme.equalsIgnoreCase("ldaps"))) {
+                final String host = uri.getHost();
+                if (host != null && !ALLOWED_HOSTS.contains(host)) {
+                    LOGGER.warn("JNDI URI '{}' connects to a host that is not allowed. Allowed hosts: {}.",
+                            name, ALLOWED_HOSTS);
+                    return null;
+                }
+            }
+        } catch (final URISyntaxException e) {
+            // Not a URI — only allow if no scheme is present (plain name)
+        }
         return (T) this.context.lookup(name);
     }
 
