@@ -58,10 +58,13 @@ public final class Constants {
      * LOG4J2-2109 if {@code true}, MessagePatternConverter will always operate as though
      * <pre>%m{nolookups}</pre> is configured.
      *
+     * <p>Defaults to {@code true} as of 2.15.0 to address CVE-2021-44228. Set to {@code false}
+     * only if you trust all data that may appear in log messages.</p>
+     *
      * @since 2.10
      */
     public static final boolean FORMAT_MESSAGES_PATTERN_DISABLE_LOOKUPS = PropertiesUtil.getProperties().getBooleanProperty(
-            "log4j2.formatMsgNoLookups", false);
+            "log4j2.formatMsgNoLookups", true);
 
     /**
      * {@code true} if we think we are running in a web container, based on the boolean value of system property

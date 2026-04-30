@@ -28,7 +28,9 @@ import org.apache.logging.log4j.junit.LoggerContextRule;
 import org.apache.logging.log4j.message.StructuredDataMessage;
 import org.apache.logging.log4j.test.appender.ListAppender;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -37,6 +39,9 @@ import static org.junit.Assert.*;
 
 /**
  * RoutingAppenderWithJndiTest
+ *
+ * <p>Note: this test explicitly enables JNDI lookups via the {@code log4j2.enableJndiLookup} system
+ * property because JNDI lookups are disabled by default as of 2.15.0 (CVE-2021-44228).</p>
  */
 public class RoutingAppenderWithJndiTest {
 
@@ -49,6 +54,17 @@ public class RoutingAppenderWithJndiTest {
     @ClassRule
     public static RuleChain rules = RuleChain.outerRule(new JndiRule(Collections.<String, Object>emptyMap()))
         .around(loggerContextRule);
+
+    @BeforeClass
+    public static void enableJndi() {
+        // Explicitly enable JNDI for this test; disabled by default as of 2.15.0 (CVE-2021-44228)
+        System.setProperty("log4j2.enableJndiLookup", "true");
+    }
+
+    @AfterClass
+    public static void disableJndi() {
+        System.clearProperty("log4j2.enableJndiLookup");
+    }
 
     @Before
     public void before() throws NamingException {
