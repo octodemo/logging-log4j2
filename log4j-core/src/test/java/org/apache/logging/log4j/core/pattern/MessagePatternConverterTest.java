@@ -76,8 +76,8 @@ public class MessagePatternConverterTest {
     }
 
     @Test
-    public void testLookupEnabledByDefault() {
-        assertFalse(Constants.FORMAT_MESSAGES_PATTERN_DISABLE_LOOKUPS, "Expected lookups to be enabled");
+    public void testLookupDisabledByDefault() {
+        assertTrue(Constants.FORMAT_MESSAGES_PATTERN_DISABLE_LOOKUPS, "Expected lookups to be disabled by default (CVE-2021-44228)");
     }
 
     @Test
@@ -93,7 +93,8 @@ public class MessagePatternConverterTest {
                 .setMessage(msg).build();
         final StringBuilder sb = new StringBuilder();
         converter.format(event, sb);
-        assertEquals("bar", sb.toString(), "Unexpected result");
+        // Lookups are disabled by default as of 2.15.0 (CVE-2021-44228); pattern is returned as-is
+        assertEquals("${foo}", sb.toString(), "Expected the raw pattern string without lookup");
     }
 
     @Test

@@ -27,9 +27,13 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.net.JndiManager;
 import org.apache.logging.log4j.status.StatusLogger;
+import org.apache.logging.log4j.util.PropertiesUtil;
 
 /**
  * Looks up keys from JNDI resources.
+ *
+ * <p>As of 2.15.0, JNDI lookups are disabled by default to address CVE-2021-44228. To enable,
+ * set the system property {@code log4j2.enableJndiLookup} to {@code true}.</p>
  */
 @Plugin(name = "jndi", category = StrLookup.CATEGORY)
 public class JndiLookup extends AbstractLookup {
@@ -41,6 +45,14 @@ public class JndiLookup extends AbstractLookup {
     static final String CONTAINER_JNDI_RESOURCE_PATH_PREFIX = "java:comp/env/";
 
     /**
+     * Returns {@code true} if JNDI lookups are enabled via the {@code log4j2.enableJndiLookup}
+     * system property. Disabled by default as of 2.15.0 (CVE-2021-44228).
+     */
+    static boolean isJndiEnabled() {
+        return PropertiesUtil.getProperties().getBooleanProperty("log4j2.enableJndiLookup", false);
+    }
+
+    /**
      * Looks up the value of the JNDI resource.
      * @param event The current LogEvent (is ignored by this StrLookup).
      * @param key  the JNDI resource name to be looked up, may be null
@@ -48,6 +60,10 @@ public class JndiLookup extends AbstractLookup {
      */
     @Override
     public String lookup(final LogEvent event, final String key) {
+        if (!isJndiEnabled()) {
+            LOGGER.warn(LOOKUP, "JNDI lookup is disabled. Set log4j2.enableJndiLookup=true to enable.");
+            return null;
+        }
         if (key == null) {
             return null;
         }
